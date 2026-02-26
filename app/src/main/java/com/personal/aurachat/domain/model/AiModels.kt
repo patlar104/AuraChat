@@ -1,5 +1,7 @@
 package com.personal.aurachat.domain.model
 
+import kotlinx.coroutines.flow.Flow
+
 enum class AiRole {
     USER,
     ASSISTANT
@@ -37,4 +39,5 @@ enum class AiErrorType {
 
 interface AiService {
     suspend fun generateReply(request: AiRequest): AiResult<AiReply>
+    fun streamReply(request: AiRequest): Flow<AiResult<String>>
 }

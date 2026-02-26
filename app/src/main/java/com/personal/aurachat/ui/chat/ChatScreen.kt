@@ -83,7 +83,7 @@ fun ChatScreen(
         }
     }
 
-    LaunchedEffect(uiState.messages.size, uiState.isSending) {
+    LaunchedEffect(uiState.messages.size, uiState.isSending, uiState.messages.lastOrNull()?.content?.length) {
         val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
         val total = listState.layoutInfo.totalItemsCount
         val nearBottom = total == 0 || lastVisible >= total - 3
@@ -157,7 +157,8 @@ fun ChatScreen(
                         )
                     }
 
-                    if (uiState.isSending) {
+                    val lastMessageIsAssistant = uiState.messages.lastOrNull()?.role == com.personal.aurachat.domain.model.AiRole.ASSISTANT
+                    if (uiState.isSending && !lastMessageIsAssistant) {
                         item("typing_indicator") {
                             Card(
                                 colors = CardDefaults.cardColors(

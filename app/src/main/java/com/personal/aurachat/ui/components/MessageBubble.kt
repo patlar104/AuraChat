@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import dev.jeziellago.compose.markdowntext.MarkdownText
 import com.personal.aurachat.domain.model.AiRole
 import com.personal.aurachat.domain.model.ChatMessage
 import com.personal.aurachat.domain.model.MessageDeliveryState
@@ -55,11 +56,18 @@ fun MessageBubble(
                 )
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
-            Text(
-                text = message.content,
-                style = MaterialTheme.typography.bodyLarge,
-                color = textColor
-            )
+            if (isUser) {
+                Text(
+                    text = message.content,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = textColor
+                )
+            } else {
+                MarkdownText(
+                    markdown = message.content,
+                    style = MaterialTheme.typography.bodyLarge.copy(color = textColor)
+                )
+            }
 
             if (message.deliveryState == MessageDeliveryState.FAILED && onRetry != null) {
                 TextButton(

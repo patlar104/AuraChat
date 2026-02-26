@@ -25,8 +25,8 @@ interface AuraChatDao {
     )
     fun observeConversationSummaries(): Flow<List<ConversationSummaryRow>>
 
-    @Query("SELECT * FROM messages WHERE conversationId = :conversationId ORDER BY createdAtEpochMs ASC, id ASC")
-    fun observeMessages(conversationId: Long): Flow<List<MessageEntity>>
+    @Query("SELECT * FROM messages WHERE conversationId = :conversationId ORDER BY createdAtEpochMs ASC, id ASC LIMIT :limit")
+    fun observeMessages(conversationId: Long, limit: Int = 100): Flow<List<MessageEntity>>
 
     @Query("SELECT title FROM conversations WHERE id = :conversationId LIMIT 1")
     fun observeConversationTitle(conversationId: Long): Flow<String?>
@@ -36,6 +36,12 @@ interface AuraChatDao {
 
     @Insert
     suspend fun insertMessage(entity: MessageEntity): Long
+
+    @Query("UPDATE messages SET content = :content, deliveryState = :state, errorType = :errorType WHERE id = :messageId")
+    suspend fun updateMessage(messageId: Long, content: String, state: String, errorType: String? = null)
+
+    @Query("UPDATE messages SET content = :content WHERE id = :messageId")
+    suspend fun updateMessageContent(messageId: Long, content: String)
 
     @Query("UPDATE conversations SET title = :title WHERE id = :conversationId")
     suspend fun updateConversationTitle(conversationId: Long, title: String)

@@ -28,6 +28,6 @@ sealed interface SendMessageResult {
     data class Failure(
         val conversationId: Long,
         val errorType: AiErrorType,
-        val message: String?
+        val message: String? = null
     ) : SendMessageResult
 }

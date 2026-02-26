@@ -68,25 +68,34 @@ class ChatViewModel(
         }
     }
 
-    private val conversationState = combine(conversationId, titleFlow, messagesFlow) { id, title, messages ->
-        Triple(id, title, messages)
-    }
+    private val combinedConversationData = combine(
+        conversationId,
+        titleFlow,
+        messagesFlow
+    ) { id, title, messages -> Triple(id, title, messages) }
 
     val uiState: StateFlow<ChatUiState> = combine(
-        conversationState,
+        combinedConversationData,
         isSending,
         isOnline,
         offlineNotice
-    ) { state, sending, online, offlineText ->
-            ChatUiState(
-                conversationId = state.first,
-                title = state.second,
-                messages = state.third,
-                isSending = sending,
-                isOnline = online,
-                offlineNotice = offlineText
-            )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ChatUiState())
+    ) { (id, title, messages), sending, online, offlineText ->
+        ChatUiState(
+            conversationId = id,
+            title = title,
+            messages = messages,
+            isSending = sending,
+            isOnline = online,
+            offlineNotice = offlineText
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = ChatUiState(
+            conversationId = initialConversationId?.takeIf { it > 0 },
+            title = if (initialConversationId != null && initialConversationId > 0) "..." else DEFAULT_CHAT_TITLE
+        )
+    )
 
     fun requestSendMessage(
         text: String,

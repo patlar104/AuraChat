@@ -42,8 +42,8 @@ class DefaultConversationRepository(
             }
         }
 
-    override fun observeMessages(conversationId: Long): Flow<List<ChatMessage>> =
-        dao.observeMessages(conversationId).map { entities ->
+    override fun observeMessages(conversationId: Long, limit: Int): Flow<List<ChatMessage>> =
+        dao.observeMessages(conversationId, limit).map { entities ->
             entities.map { entity ->
                 ChatMessage(
                     id = entity.id,
@@ -134,35 +134,66 @@ class DefaultConversationRepository(
             AiMessage(role = entity.role.toAiRole(), text = entity.content)
         }
 
-        val result = aiService.generateReply(
-            AiRequest(
-                messages = requestMessages,
-                model = DEFAULT_MODEL,
-                timeoutMillis = timeoutMillis
-            )
-        )
+        var messageId: Long? = null
+        var fullContent = ""
+        var lastError: AiResult.Error? = null
 
-        return when (result) {
-            is AiResult.Success -> {
-                persistAssistantMessage(
-                    conversationId = conversationId,
-                    content = result.value.text,
-                    state = MessageDeliveryState.SENT,
-                    errorType = null
+        try {
+            aiService.streamReply(
+                AiRequest(
+                    messages = requestMessages,
+                    model = DEFAULT_MODEL,
+                    timeoutMillis = timeoutMillis
                 )
-                SendMessageResult.Success(conversationId)
+            ).collect { result ->
+                when (result) {
+                    is AiResult.Success -> {
+                        if (messageId == null) {
+                            messageId = persistAssistantMessage(
+                                conversationId = conversationId,
+                                content = "",
+                                state = MessageDeliveryState.SENT,
+                                errorType = null
+                            )
+                        }
+                        fullContent += result.value
+                        dao.updateMessageContent(messageId!!, fullContent)
+                    }
+                    is AiResult.Error -> {
+                        lastError = result
+                    }
+                }
             }
-
-            is AiResult.Error -> {
-                persistAssistantMessage(
-                    conversationId = conversationId,
-                    content = result.message ?: result.type.toFriendlyMessage(),
-                    state = MessageDeliveryState.FAILED,
-                    errorType = result.type
-                )
-                SendMessageResult.Failure(conversationId, result.type, result.message)
-            }
+        } catch (e: Exception) {
+            lastError = AiResult.Error(AiErrorType.UNKNOWN, e.message)
         }
+
+        if (lastError != null && fullContent.isBlank()) {
+            val finalMessageId = messageId ?: persistAssistantMessage(
+                conversationId = conversationId,
+                content = "",
+                state = MessageDeliveryState.FAILED,
+                errorType = lastError!!.type
+            )
+            dao.updateMessage(
+                messageId = finalMessageId,
+                content = lastError!!.message ?: lastError!!.type.toFriendlyMessage(),
+                state = MessageDeliveryState.FAILED.name,
+                errorType = lastError!!.type.name
+            )
+            return SendMessageResult.Failure(conversationId, lastError!!.type, lastError!!.message)
+        } else if (fullContent.isBlank() && lastError == null) {
+            val emptyError = AiErrorType.EMPTY_RESPONSE
+            val finalMessageId = messageId ?: persistAssistantMessage(
+                conversationId = conversationId,
+                content = emptyError.toFriendlyMessage(),
+                state = MessageDeliveryState.FAILED,
+                errorType = emptyError
+            )
+            return SendMessageResult.Failure(conversationId, emptyError)
+        }
+
+        return SendMessageResult.Success(conversationId)
     }
 
     private suspend fun persistAssistantMessage(
@@ -170,10 +201,10 @@ class DefaultConversationRepository(
         content: String,
         state: MessageDeliveryState,
         errorType: AiErrorType?
-    ) {
+    ): Long {
         val now = timeProvider.nowEpochMillis()
-        database.withTransaction {
-            dao.insertMessage(
+        return database.withTransaction {
+            val id = dao.insertMessage(
                 MessageEntity(
                     conversationId = conversationId,
                     role = AiRole.ASSISTANT.name,
@@ -184,6 +215,7 @@ class DefaultConversationRepository(
                 )
             )
             dao.updateConversationTimestamp(conversationId, now)
+            id
         }
     }
 
@@ -218,7 +250,7 @@ class DefaultConversationRepository(
     }
 
     companion object {
-        const val DEFAULT_MODEL = "gemini-flash-latest"
+        const val DEFAULT_MODEL = "gemini-1.5-flash"
         const val DEFAULT_CONVERSATION_TITLE = "New chat"
         private const val MAX_TITLE_LENGTH = 48
     }

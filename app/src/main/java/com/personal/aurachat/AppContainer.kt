@@ -7,14 +7,12 @@ import com.personal.aurachat.core.network.NetworkMonitor
 import com.personal.aurachat.core.time.SystemTimeProvider
 import com.personal.aurachat.core.time.TimeProvider
 import com.personal.aurachat.data.local.AuraChatDatabase
-import com.personal.aurachat.data.remote.GeminiAiService
+import com.personal.aurachat.data.remote.GoogleAiService
 import com.personal.aurachat.data.repository.DefaultConversationRepository
 import com.personal.aurachat.data.repository.DefaultSettingsRepository
 import com.personal.aurachat.domain.model.AiService
 import com.personal.aurachat.domain.repository.ConversationRepository
 import com.personal.aurachat.domain.repository.SettingsRepository
-import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
 
 interface AppContainer {
     val conversationRepository: ConversationRepository
@@ -42,18 +40,8 @@ class DefaultAppContainer(
         ConnectivityNetworkMonitor(appContext)
     }
 
-    private val okHttpClient: OkHttpClient by lazy {
-        val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.NONE
-        }
-        OkHttpClient.Builder()
-            .addInterceptor(logging)
-            .build()
-    }
-
     private val aiService: AiService by lazy {
-        GeminiAiService(
-            httpClient = okHttpClient,
+        GoogleAiService(
             apiKeyProvider = { settingsRepository.getApiKey() }
         )
     }

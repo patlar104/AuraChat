@@ -45,8 +45,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.personal.aurachat.domain.model.ConversationSummary
 import com.personal.aurachat.presentation.home.HomeUiState
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @Composable
@@ -335,5 +336,8 @@ private fun ConversationCard(
 }
 
 private fun formatTimestamp(timestamp: Long): String {
-    return SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(timestamp))
+    val instant = Instant.ofEpochMilli(timestamp)
+    val formatter = DateTimeFormatter.ofPattern("MMM d, h:mm a", Locale.getDefault())
+        .withZone(ZoneId.systemDefault())
+    return formatter.format(instant)
 }

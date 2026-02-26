@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface ConversationRepository {
     fun observeConversationSummaries(): Flow<List<ConversationSummary>>
-    fun observeMessages(conversationId: Long): Flow<List<ChatMessage>>
+    fun observeMessages(conversationId: Long, limit: Int = 200): Flow<List<ChatMessage>>
     fun observeConversationTitle(conversationId: Long): Flow<String?>
 
     suspend fun createConversationIfNeeded(existingId: Long?): Long
