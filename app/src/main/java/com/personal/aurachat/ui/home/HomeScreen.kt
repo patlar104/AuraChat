@@ -2,7 +2,6 @@ package com.personal.aurachat.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,12 +40,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.personal.aurachat.R
 import com.personal.aurachat.domain.model.ConversationSummary
 import com.personal.aurachat.presentation.home.HomeUiState
 import java.text.SimpleDateFormat
@@ -200,12 +196,55 @@ private fun HomeHeader(
 
 @Composable
 private fun HomeHeaderBackground(modifier: Modifier = Modifier) {
-    Image(
-        painter = painterResource(id = R.drawable.header_nature),
-        contentDescription = null,
-        modifier = modifier,
-        contentScale = ContentScale.Crop
-    )
+    Box(
+        modifier = modifier.background(
+            brush = Brush.verticalGradient(
+                colors = listOf(
+                    Color(0xFF7ECED4),
+                    Color(0xFF3E7A94)
+                )
+            )
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 26.dp, end = 32.dp)
+                .size(120.dp)
+                .background(color = Color(0x55FFF5D6), shape = CircleShape)
+        )
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(110.dp)
+                .background(
+                    color = Color(0xFF3E6D57),
+                    shape = RoundedCornerShape(topStart = 120.dp, topEnd = 120.dp)
+                )
+        )
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .size(width = 240.dp, height = 95.dp)
+                .background(
+                    color = Color(0xFF2F5B47),
+                    shape = RoundedCornerShape(topStart = 100.dp, topEnd = 140.dp)
+                )
+        )
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .size(width = 220.dp, height = 90.dp)
+                .background(
+                    color = Color(0xFF254A3B),
+                    shape = RoundedCornerShape(topStart = 130.dp, topEnd = 90.dp)
+                )
+        )
+    }
 }
 
 @Composable
