@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Project Overview
+
+AuraChat is an Android AI chat app using Google Gemini. Key build command: `./gradlew assembleDebug`. Architecture follows Clean MVVM with Jetpack Compose. See sections below for full details.
+
 ## Build Commands
 
 ```bash
@@ -53,3 +57,12 @@ All dependency versions are centralized in `gradle/libs.versions.toml`. Always u
 `AiErrorType` covers: `OFFLINE`, `TIMEOUT`, `NETWORK`, `EMPTY_RESPONSE`, `MALFORMED_RESPONSE`, `UNAUTHORIZED`, `UNKNOWN`. Messages have a `deliveryState` of `SENT` or `FAILED`; failed messages can be retried (deleted and re-requested).
 
 The `NetworkMonitor` wraps `ConnectivityManager` and exposes an `isOnline: Flow<Boolean>` that ViewModels combine into UI state.
+
+## Code Reviews
+
+When asked to do a security review, always perform a **comprehensive review of the entire codebase** — not just pending or staged changes. Use file exploration (Read, Glob, Grep) and `git log` / `git diff HEAD~N` to inspect history. Check: manifest hardening, logging safety, API key exposure, exported components, intent filters, and network/storage security.
+
+## Workflow
+
+- **Before committing security or manifest changes**: run `./gradlew lint` to catch issues before they land.
+- **After making fixes**: verify the build still compiles with `./gradlew assembleDebug`.
