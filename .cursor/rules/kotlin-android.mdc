@@ -1,0 +1,38 @@
+---
+description: Kotlin and Android patterns for AuraChat
+globs: "**/*.kt"
+alwaysApply: false
+---
+
+# Kotlin / Android Conventions
+
+## Architecture
+
+- **domain/**: Interfaces and data models with no Android dependencies
+- **data/**: Room DB, Google AI SDK, repository implementations
+- **presentation/**: ViewModels using StateFlow and coroutines
+- **ui/**: Jetpack Compose screens and components
+
+## State Flow
+
+- Compose screens collect `StateFlow<UiState>` from ViewModels
+- ViewModels combine flows (Room DAOs, NetworkMonitor) with `combine { }.stateIn(...)`
+- `ChatViewModel` uses a `Mutex` to prevent concurrent sends
+
+## Entry Point
+
+- `AppContainer.kt` is the manual service locator (no Hilt/Dagger)
+- Created in `AuraChatApp`; `MainActivity` accesses via Application reference
+
+## Secure Storage
+
+- API key: `EncryptedSharedPreferences` (AES-256-GCM)
+- Timeout preference: DataStore
+- On corruption: clear and recreate
+
+## Dependencies
+
+- Jetpack Compose + Material3 + Navigation Compose (type-safe routes)
+- Room 2.6.1 with KSP
+- Google AI Client SDK (`generativeai`)
+- Min SDK 24 | Target SDK 35

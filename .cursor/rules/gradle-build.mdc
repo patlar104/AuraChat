@@ -1,0 +1,24 @@
+---
+description: Gradle build commands and dependency management for AuraChat
+globs: "**/*.gradle*"
+alwaysApply: false
+---
+
+# Gradle Build Conventions
+
+## Build Commands
+
+```bash
+./gradlew assembleDebug          # Build debug APK
+./gradlew assembleRelease       # Build release APK
+./gradlew test                  # Run unit tests
+./gradlew testDebugUnitTest     # Single test: --tests "com.personal.aurachat.MyTest"
+./gradlew connectedAndroidTest   # Instrumented tests (device/emulator required)
+./gradlew lint                  # Android lint checks
+./gradlew clean                 # Clean build outputs
+```
+
+## Dependency Versions
+
+- All versions centralized in `gradle/libs.versions.toml`
+- Update versions there only; never inline in build files

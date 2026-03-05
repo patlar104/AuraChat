@@ -1,0 +1,21 @@
+---
+description: AI and message error handling patterns for AuraChat
+alwaysApply: false
+---
+
+# Error Handling Patterns
+
+## AiErrorType
+
+Covers: `OFFLINE`, `TIMEOUT`, `NETWORK`, `EMPTY_RESPONSE`, `MALFORMED_RESPONSE`, `UNAUTHORIZED`, `UNKNOWN`
+
+## Message Delivery State
+
+- Messages have `deliveryState`: `SENT` or `FAILED`
+- Failed messages can be retried: delete the message and re-request
+
+## NetworkMonitor
+
+- Wraps `ConnectivityManager`
+- Exposes `isOnline: Flow<Boolean>` that ViewModels combine into UI state
+- Check connectivity before or in combination with AI operations
