@@ -1,5 +1,6 @@
 package com.personal.aurachat.data.remote
 
+import android.util.Log
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.RequestOptions
 import com.google.ai.client.generativeai.type.SafetySetting
@@ -31,9 +32,11 @@ class GoogleAiService(
 
         val currentModel = cachedModel
         if (currentModel != null && cachedApiKey == apiKey && cachedModelName == modelName) {
+            Log.d(TAG, "Using cached model: $modelName")
             return currentModel
         }
 
+        Log.i(TAG, "Initializing model: $modelName (timeout=${timeoutMillis}ms)")
         val newModel = GenerativeModel(
             modelName = modelName,
             apiKey = apiKey,
@@ -53,6 +56,7 @@ class GoogleAiService(
     }
 
     override suspend fun generateReply(request: AiRequest): AiResult<AiReply> {
+        Log.d(TAG, "generateReply: model=${request.model} messages=${request.messages.size}")
         return try {
             val model = getModel(request.model, request.timeoutMillis)
             val prompt = content {
@@ -64,21 +68,27 @@ class GoogleAiService(
             val response = model.generateContent(prompt)
             val text = response.text
             if (text.isNullOrBlank()) {
+                Log.w(TAG, "generateReply: empty response from model")
                 AiResult.Error(AiErrorType.EMPTY_RESPONSE, "AI returned no text.")
             } else {
+                Log.d(TAG, "generateReply: success")
                 AiResult.Success(AiReply(text))
             }
         } catch (e: IllegalArgumentException) {
+            Log.w(TAG, "generateReply: unauthorized - ${e.message}")
             AiResult.Error(AiErrorType.UNAUTHORIZED, e.message)
         } catch (e: Exception) {
+            Log.e(TAG, "generateReply: error - ${e::class.simpleName}")
             mapError(e)
         }
     }
 
     override fun streamReply(request: AiRequest): Flow<AiResult<String>> = flow {
+        Log.d(TAG, "streamReply: start model=${request.model} messages=${request.messages.size}")
         val model = try {
             getModel(request.model, request.timeoutMillis)
         } catch (e: IllegalArgumentException) {
+            Log.w(TAG, "streamReply: unauthorized - ${e.message}")
             emit(AiResult.Error(AiErrorType.UNAUTHORIZED, e.message))
             return@flow
         }
@@ -90,16 +100,21 @@ class GoogleAiService(
             }
         }
 
+        var chunkCount = 0
         model.generateContentStream(prompt).collect { response ->
             val text = response.text
             if (!text.isNullOrBlank()) {
+                chunkCount++
                 emit(AiResult.Success(text))
             }
         }
+        Log.d(TAG, "streamReply: complete chunks=$chunkCount")
     }.catch { e ->
         if (e is Exception) {
+            Log.e(TAG, "streamReply: error - ${e::class.simpleName}")
             emit(mapError(e))
         } else {
+            Log.e(TAG, "streamReply: fatal error - ${e::class.simpleName}")
             emit(AiResult.Error(AiErrorType.UNKNOWN, e.message ?: "Unknown error"))
         }
     }
@@ -114,5 +129,9 @@ class GoogleAiService(
                 AiResult.Error(AiErrorType.NETWORK, "AI server error.")
             else -> AiResult.Error(AiErrorType.UNKNOWN, e.message ?: "An unexpected error occurred.")
         }
+    }
+
+    companion object {
+        private const val TAG = "GoogleAiService"
     }
 }

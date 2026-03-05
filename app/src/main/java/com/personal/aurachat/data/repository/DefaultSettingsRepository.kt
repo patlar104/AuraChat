@@ -46,12 +46,12 @@ class DefaultSettingsRepository(
     private fun createEncryptedPrefsWithRecovery(): SharedPreferences? {
         return runCatching { createEncryptedPrefs() }
             .recoverCatching { firstError ->
-                Log.w(TAG, "Encrypted prefs read failed; clearing secure prefs and recreating.", firstError)
+                Log.w(TAG, "Encrypted prefs read failed; clearing secure prefs and recreating.")
                 context.deleteSharedPreferences(SECURE_PREFS_NAME)
                 createEncryptedPrefs()
             }
-            .getOrElse { fatalError ->
-                Log.e(TAG, "Unable to initialize encrypted prefs; API key storage disabled.", fatalError)
+            .getOrElse {
+                Log.e(TAG, "Unable to initialize encrypted prefs; API key storage disabled.")
                 null
             }
     }

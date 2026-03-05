@@ -1,5 +1,6 @@
 package com.personal.aurachat.data.repository
 
+import android.util.Log
 import androidx.room.withTransaction
 import com.personal.aurachat.core.time.TimeProvider
 import com.personal.aurachat.data.local.AuraChatDao
@@ -61,20 +62,26 @@ class DefaultConversationRepository(
         dao.observeConversationTitle(conversationId)
 
     override suspend fun createConversationIfNeeded(existingId: Long?): Long {
-        if (existingId != null && existingId > 0) return existingId
+        if (existingId != null && existingId > 0) {
+            Log.d(TAG, "Using existing conversation id=$existingId")
+            return existingId
+        }
         val now = timeProvider.nowEpochMillis()
-        return dao.insertConversation(
+        val id = dao.insertConversation(
             ConversationEntity(
                 title = DEFAULT_CONVERSATION_TITLE,
                 createdAtEpochMs = now,
                 updatedAtEpochMs = now
             )
         )
+        Log.i(TAG, "Created conversation id=$id")
+        return id
     }
 
     override suspend fun sendUserMessage(conversationId: Long, text: String): SendMessageResult {
         val normalized = text.trim()
         if (normalized.isBlank()) {
+            Log.w(TAG, "sendUserMessage: rejected empty message conversationId=$conversationId")
             return SendMessageResult.Failure(
                 conversationId = conversationId,
                 errorType = AiErrorType.UNKNOWN,
@@ -82,6 +89,7 @@ class DefaultConversationRepository(
             )
         }
 
+        Log.d(TAG, "sendUserMessage: conversationId=$conversationId chars=${normalized.length}")
         val now = timeProvider.nowEpochMillis()
         database.withTransaction {
             dao.insertMessage(
@@ -107,12 +115,16 @@ class DefaultConversationRepository(
 
     override suspend fun retryLastFailedAssistantReply(conversationId: Long): SendMessageResult {
         val failedMessage = dao.getLastFailedAssistantMessage(conversationId)
-            ?: return SendMessageResult.Failure(
-                conversationId = conversationId,
-                errorType = AiErrorType.UNKNOWN,
-                message = "No failed response available to retry."
-            )
+            ?: run {
+                Log.w(TAG, "retryLastFailed: no failed message found conversationId=$conversationId")
+                return SendMessageResult.Failure(
+                    conversationId = conversationId,
+                    errorType = AiErrorType.UNKNOWN,
+                    message = "No failed response available to retry."
+                )
+            }
 
+        Log.i(TAG, "retryLastFailed: deleting messageId=${failedMessage.id} conversationId=$conversationId")
         database.withTransaction {
             dao.deleteMessageById(failedMessage.id)
             dao.updateConversationTimestamp(conversationId, timeProvider.nowEpochMillis())
@@ -124,6 +136,7 @@ class DefaultConversationRepository(
     override suspend fun renameConversation(conversationId: Long, title: String) {
         val normalized = title.trim()
         if (normalized.isBlank()) return
+        Log.d(TAG, "renameConversation: conversationId=$conversationId")
         dao.updateConversationTitle(conversationId, normalized)
         dao.updateConversationTimestamp(conversationId, timeProvider.nowEpochMillis())
     }
@@ -133,6 +146,7 @@ class DefaultConversationRepository(
         val requestMessages = dao.getMessagesForRequest(conversationId).map { entity ->
             AiMessage(role = entity.role.toAiRole(), text = entity.content)
         }
+        Log.d(TAG, "requestAssistantReply: conversationId=$conversationId historySize=${requestMessages.size} timeout=${timeoutMillis}ms")
 
         var messageId: Long? = null
         var fullContent = ""
@@ -155,20 +169,24 @@ class DefaultConversationRepository(
                                 state = MessageDeliveryState.SENT,
                                 errorType = null
                             )
+                            Log.d(TAG, "requestAssistantReply: created assistant message id=$messageId")
                         }
                         fullContent += result.value
                         dao.updateMessageContent(messageId!!, fullContent)
                     }
                     is AiResult.Error -> {
+                        Log.w(TAG, "requestAssistantReply: stream error type=${result.type}")
                         lastError = result
                     }
                 }
             }
         } catch (e: Exception) {
+            Log.e(TAG, "requestAssistantReply: exception ${e::class.simpleName}")
             lastError = AiResult.Error(AiErrorType.UNKNOWN, e.message)
         }
 
         if (lastError != null && fullContent.isBlank()) {
+            Log.w(TAG, "requestAssistantReply: failed conversationId=$conversationId error=${lastError!!.type}")
             val finalMessageId = messageId ?: persistAssistantMessage(
                 conversationId = conversationId,
                 content = "",
@@ -183,6 +201,7 @@ class DefaultConversationRepository(
             )
             return SendMessageResult.Failure(conversationId, lastError!!.type, lastError!!.message)
         } else if (fullContent.isBlank() && lastError == null) {
+            Log.w(TAG, "requestAssistantReply: empty response conversationId=$conversationId")
             val emptyError = AiErrorType.EMPTY_RESPONSE
             val finalMessageId = messageId ?: persistAssistantMessage(
                 conversationId = conversationId,
@@ -193,6 +212,7 @@ class DefaultConversationRepository(
             return SendMessageResult.Failure(conversationId, emptyError)
         }
 
+        Log.i(TAG, "requestAssistantReply: success conversationId=$conversationId messageId=$messageId")
         return SendMessageResult.Success(conversationId)
     }
 
@@ -250,6 +270,7 @@ class DefaultConversationRepository(
     }
 
     companion object {
+        private const val TAG = "ConversationRepository"
         const val DEFAULT_MODEL = "gemini-1.5-flash"
         const val DEFAULT_CONVERSATION_TITLE = "New chat"
         private const val MAX_TITLE_LENGTH = 48
