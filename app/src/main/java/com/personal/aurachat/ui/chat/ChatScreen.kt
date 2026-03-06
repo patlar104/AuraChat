@@ -45,7 +45,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.personal.aurachat.domain.model.AiRole
 import com.personal.aurachat.domain.model.MessageDeliveryState
+import com.personal.aurachat.domain.model.ChatMessage
 import com.personal.aurachat.presentation.chat.ChatUiState
 import com.personal.aurachat.ui.components.MessageBubble
 import kotlinx.coroutines.launch
@@ -142,9 +144,7 @@ fun ChatScreen(
                         bottom = 12.dp
                     )
                 ) {
-                    val lastFailedIndex = uiState.messages.indexOfLast {
-                        it.deliveryState == MessageDeliveryState.FAILED
-                    }
+                    val lastFailedIndex = retryableFailedMessageIndex(uiState.messages)
 
                     items(
                         count = uiState.messages.size,
@@ -242,5 +242,17 @@ fun ChatScreen(
                 )
             }
         }
+    }
+}
+
+internal fun retryableFailedMessageIndex(messages: List<ChatMessage>): Int {
+    val latestMessage = messages.lastOrNull() ?: return -1
+    return if (
+        latestMessage.role == AiRole.ASSISTANT &&
+        latestMessage.deliveryState == MessageDeliveryState.FAILED
+    ) {
+        messages.lastIndex
+    } else {
+        -1
     }
 }

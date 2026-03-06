@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "type": "command",
+        "command": ".github/scripts/pre-commit-lint.sh",
+        "osx": ".github/scripts/pre-commit-lint.sh",
+        "linux": ".github/scripts/pre-commit-lint.sh",
+        "timeout": 300,
+        "cwd": "${workspaceFolder}"
+      }
+    ]
+  }
+}
