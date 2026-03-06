@@ -129,14 +129,22 @@ fun `descriptive behavior being tested`() = runTest { ... }
 
 ### Collecting StateFlow in tests
 
+`stateIn(WhileSubscribed(...))` starts upstream collection in a new coroutine. Call `advanceUntilIdle()` after subscribing to drain all pending work before asserting on `.value`:
+
 ```kotlin
-// Collect to trigger stateIn(...) and allow upstream flows to emit
 val job = launch { viewModel.uiState.collect {} }
-// ... assertions ...
+advanceUntilIdle()   // ← required: lets stateIn propagate the upstream emission
+assertEquals(expected, viewModel.uiState.value.someField)
 job.cancel()
 ```
 
-Or use `turbine` if added to dependencies (not currently present — use `launch/collect` pattern instead).
+Also call `advanceUntilIdle()` after actions that trigger `viewModelScope.launch { }` before asserting side-effects:
+
+```kotlin
+viewModel.saveSettings()
+advanceUntilIdle()
+assertEquals("my-api-key", repository.savedApiKey)
+```
 
 ---
 
