@@ -1,12 +1,13 @@
 ---
 name: room-migration
-description: 'Guide Room database schema migrations in AuraChat. Use when adding/removing columns, renaming tables, changing entity structure, or bumping database version. Covers version bumps, @Migration classes, fallback strategies, and schema export setup.'
+description: "Guide Room database schema migrations in AuraChat. Use when adding/removing columns, renaming tables, changing entity structure, or bumping database version. Covers version bumps, @Migration classes, fallback strategies, and schema export setup."
 argument-hint: 'Describe the schema change (e.g., "add summaryText column to conversations")'
 ---
 
 # Room Migration — AuraChat
 
 ## When to Use
+
 - Adding or removing a column on `ConversationEntity` or `MessageEntity`
 - Renaming a table or column
 - Adding a new `@Entity` or `@Index`
@@ -20,6 +21,7 @@ argument-hint: 'Describe the schema change (e.g., "add summaryText column to con
 `AuraChatDatabase` currently has `exportSchema = false`. **Enable it first** so Room generates JSON snapshots that make future migrations auditable.
 
 **`AuraChatDatabase.kt`** — change the annotation:
+
 ```kotlin
 @Database(
     entities = [ConversationEntity::class, MessageEntity::class],
@@ -29,6 +31,7 @@ argument-hint: 'Describe the schema change (e.g., "add summaryText column to con
 ```
 
 **`app/build.gradle.kts`** — add the KSP argument so snapshots are written to `schemas/`:
+
 ```kotlin
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
@@ -42,6 +45,7 @@ Commit the generated `schemas/com.personal.aurachat.data.local.AuraChatDatabase/
 ## Step 2 — Bump the Version
 
 In `AuraChatDatabase.kt`:
+
 ```kotlin
 @Database(
     entities = [...],
@@ -85,11 +89,11 @@ Room.databaseBuilder(context, AuraChatDatabase::class.java, "aurachat.db")
 
 ## Step 5 — Choose a Fallback Strategy
 
-| Scenario | Action |
-|---|---|
-| **Development / data is disposable** | Add `.fallbackToDestructiveMigration()` to the builder — wipes and recreates on version mismatch |
-| **Production / user data must survive** | Do NOT use fallback; write a proper `Migration` for every version gap |
-| **Missing intermediate migration** | Add all chained migrations: `MIGRATION_1_2`, `MIGRATION_2_3`, etc. Room chains them automatically |
+| Scenario                                | Action                                                                                            |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| **Development / data is disposable**    | Add `.fallbackToDestructiveMigration()` to the builder — wipes and recreates on version mismatch  |
+| **Production / user data must survive** | Do NOT use fallback; write a proper `Migration` for every version gap                             |
+| **Missing intermediate migration**      | Add all chained migrations: `MIGRATION_1_2`, `MIGRATION_2_3`, etc. Room chains them automatically |
 
 > AuraChat is currently at version 1 (dev). If releasing publicly, remove `fallbackToDestructiveMigration` before going to production.
 

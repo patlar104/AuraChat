@@ -26,6 +26,7 @@ ui/            # Jetpack Compose screens and components
 ```
 
 **Key files:**
+
 - `AppContainer.kt` — manual service locator; created in `AuraChatApp`, accessed from `MainActivity` via Application reference
 - `data/remote/GoogleAiService.kt` — `streamReply()` returns `Flow<AiResult<String>>` (Gemini `gemini-1.5-flash`)
 - `presentation/chat/ChatViewModel.kt` — uses `Mutex` to prevent concurrent sends; exposes `StateFlow<UiState>`
@@ -41,6 +42,7 @@ ui/            # Jetpack Compose screens and components
 ## Database
 
 Two Room entities with cascade-delete:
+
 - `ConversationEntity` — key index on `(conversationId, createdAtEpochMs)`
 - `MessageEntity` — key index on `(conversationId, role, deliveryState)`
 
@@ -64,6 +66,7 @@ Key versions: Room 2.6.1, Google AI Client SDK 0.9.0, Min SDK 24, Target SDK 35.
 ## Testing
 
 Unit tests live in `app/src/test/`. Reference tests:
+
 - `presentation/chat/ChatViewModelTest.kt` — ViewModel layer
 - `data/repository/DefaultConversationRepositoryTest.kt` — repository layer
 - `ui/chat/ChatScreenLogicTest.kt` — screen logic

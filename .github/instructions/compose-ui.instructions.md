@@ -7,6 +7,7 @@ applyTo: "app/src/main/java/**/ui/**"
 ## Screen Contract
 
 Every screen composable must:
+
 - Accept a `UiState` data class + typed callbacks as parameters — never collect `StateFlow` directly
 - Have `modifier: Modifier = Modifier` as the **last** parameter
 - Be created in `AuraChatNavGraph`; ViewModels are **never** instantiated inside screen composables
@@ -59,15 +60,15 @@ State is collected with `collectAsStateWithLifecycle()` — **never** `collectAs
 
 Use `MaterialTheme.colorScheme.*` — never hardcode colors in UI files. The palette:
 
-| Token | Usage in AuraChat |
-|---|---|
-| `primaryContainer` / `onPrimaryContainer` | User message bubbles |
-| `secondaryContainer` / `onSecondaryContainer` | AI message bubbles |
-| `errorContainer` / `onErrorContainer` | Failed message bubbles, offline banner |
-| `surfaceContainerLow` | Conversation list cards |
-| `surfaceContainerHigh` | Typing indicator card |
-| `surfaceContainerHighest` | Empty-state card |
-| `onSurfaceVariant` | Secondary / timestamp text |
+| Token                                         | Usage in AuraChat                      |
+| --------------------------------------------- | -------------------------------------- |
+| `primaryContainer` / `onPrimaryContainer`     | User message bubbles                   |
+| `secondaryContainer` / `onSecondaryContainer` | AI message bubbles                     |
+| `errorContainer` / `onErrorContainer`         | Failed message bubbles, offline banner |
+| `surfaceContainerLow`                         | Conversation list cards                |
+| `surfaceContainerHigh`                        | Typing indicator card                  |
+| `surfaceContainerHighest`                     | Empty-state card                       |
+| `onSurfaceVariant`                            | Secondary / timestamp text             |
 
 Dynamic color (Android 12+) is enabled by default in `AuraChatTheme`. Static fallback uses the blue-green/mist/leaf palette from `Color.kt`.
 
