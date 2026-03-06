@@ -38,7 +38,7 @@ class DefaultConversationRepository(
                 ConversationSummary(
                     id = row.id,
                     title = row.title,
-                    latestMessagePreview = row.latestMessagePreview,
+                    latestMessagePreview = row.latestMessagePreview.toDisplayedMessageContent(),
                     updatedAtEpochMs = row.updatedAtEpochMs
                 )
             }
@@ -51,7 +51,7 @@ class DefaultConversationRepository(
                     id = entity.id,
                     conversationId = entity.conversationId,
                     role = entity.role.toAiRole(),
-                    content = entity.content,
+                    content = entity.content.toDisplayedMessageContent(),
                     createdAtEpochMs = entity.createdAtEpochMs,
                     deliveryState = entity.deliveryState.toDeliveryState(),
                     errorType = entity.errorType?.toAiErrorType()
@@ -124,6 +124,15 @@ class DefaultConversationRepository(
                     message = "No failed response available to retry."
                 )
             }
+        val latestMessage = dao.getLatestMessage(conversationId)
+        if (latestMessage?.id != failedMessage.id) {
+            Log.w(TAG, "retryLastFailed: stale failed message messageId=${failedMessage.id} latest=${latestMessage?.id}")
+            return SendMessageResult.Failure(
+                conversationId = conversationId,
+                errorType = AiErrorType.UNKNOWN,
+                message = "Only the latest failed response can be retried."
+            )
+        }
 
         Log.i(TAG, "retryLastFailed: deleting messageId=${failedMessage.id} conversationId=$conversationId")
         database.withTransaction {
@@ -144,9 +153,11 @@ class DefaultConversationRepository(
 
     private suspend fun requestAssistantReply(conversationId: Long): SendMessageResult {
         val timeoutMillis = settingsRepository.observeTimeoutMillis().first()
-        val requestMessages = dao.getMessagesForRequest(conversationId).map { entity ->
-            AiMessage(role = entity.role.toAiRole(), text = entity.content)
-        }
+        val requestMessages = dao.getMessagesForConversation(conversationId)
+            .filter(::shouldIncludeMessageInRequest)
+            .map { entity ->
+                AiMessage(role = entity.role.toAiRole(), text = entity.content.toDisplayedMessageContent())
+            }
         Log.d(TAG, "requestAssistantReply: conversationId=$conversationId historySize=${requestMessages.size} timeout=${timeoutMillis}ms")
 
         var messageId: Long? = null
@@ -197,8 +208,11 @@ class DefaultConversationRepository(
                 state = MessageDeliveryState.FAILED,
                 errorType = lastError!!.type
             )
-            // Preserve any partial content so the user sees what arrived before the error.
-            val persistedContent = fullContent.ifBlank { lastError!!.message ?: lastError!!.type.toFriendlyMessage() }
+            val persistedContent = if (fullContent.isBlank()) {
+                buildStoredFailureContent(lastError!!.message ?: lastError!!.type.toFriendlyMessage())
+            } else {
+                fullContent
+            }
             dao.updateMessage(
                 messageId = finalMessageId,
                 content = persistedContent,
@@ -209,15 +223,16 @@ class DefaultConversationRepository(
         } else if (fullContent.isBlank()) {
             Log.w(TAG, "requestAssistantReply: empty response conversationId=$conversationId")
             val emptyError = AiErrorType.EMPTY_RESPONSE
+            val persistedContent = buildStoredFailureContent(emptyError.toFriendlyMessage())
             val finalMessageId = messageId ?: persistAssistantMessage(
                 conversationId = conversationId,
-                content = emptyError.toFriendlyMessage(),
+                content = persistedContent,
                 state = MessageDeliveryState.FAILED,
                 errorType = emptyError
             )
             dao.updateMessage(
                 messageId = finalMessageId,
-                content = emptyError.toFriendlyMessage(),
+                content = persistedContent,
                 state = MessageDeliveryState.FAILED.name,
                 errorType = emptyError.name
             )
@@ -288,3 +303,16 @@ class DefaultConversationRepository(
         private const val MAX_TITLE_LENGTH = 48
     }
 }
+
+internal const val SYSTEM_FAILURE_PREFIX = "[[system-error]] "
+
+internal fun buildStoredFailureContent(displayMessage: String): String =
+    "$SYSTEM_FAILURE_PREFIX$displayMessage"
+
+internal fun String.toDisplayedMessageContent(): String =
+    removePrefix(SYSTEM_FAILURE_PREFIX)
+
+internal fun shouldIncludeMessageInRequest(message: MessageEntity): Boolean =
+    !(message.role.equals(AiRole.ASSISTANT.name, ignoreCase = true) &&
+        message.deliveryState.equals(MessageDeliveryState.FAILED.name, ignoreCase = true) &&
+        message.content.startsWith(SYSTEM_FAILURE_PREFIX))

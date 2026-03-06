@@ -65,11 +65,10 @@ interface AuraChatDao {
         """
         SELECT * FROM messages
         WHERE conversationId = :conversationId
-          AND NOT (role = 'ASSISTANT' AND deliveryState = 'FAILED')
         ORDER BY createdAtEpochMs ASC, id ASC
         """
     )
-    suspend fun getMessagesForRequest(conversationId: Long): List<MessageEntity>
+    suspend fun getMessagesForConversation(conversationId: Long): List<MessageEntity>
 
     @Query(
         """
@@ -82,6 +81,16 @@ interface AuraChatDao {
         """
     )
     suspend fun getLastFailedAssistantMessage(conversationId: Long): MessageEntity?
+
+    @Query(
+        """
+        SELECT * FROM messages
+        WHERE conversationId = :conversationId
+        ORDER BY createdAtEpochMs DESC, id DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getLatestMessage(conversationId: Long): MessageEntity?
 
     @Query("DELETE FROM messages WHERE id = :messageId")
     suspend fun deleteMessageById(messageId: Long)
