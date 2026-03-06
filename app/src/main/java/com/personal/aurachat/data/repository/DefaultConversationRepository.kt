@@ -19,6 +19,7 @@ import com.personal.aurachat.domain.model.MessageDeliveryState
 import com.personal.aurachat.domain.model.SendMessageResult
 import com.personal.aurachat.domain.repository.ConversationRepository
 import com.personal.aurachat.domain.repository.SettingsRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -180,27 +181,32 @@ class DefaultConversationRepository(
                     }
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "requestAssistantReply: exception ${e::class.simpleName}")
             lastError = AiResult.Error(AiErrorType.UNKNOWN, e.message)
         }
 
-        if (lastError != null && fullContent.isBlank()) {
-            Log.w(TAG, "requestAssistantReply: failed conversationId=$conversationId error=${lastError!!.type}")
+        if (lastError != null) {
+            // Any stream error (with or without partial content) is a failure.
+            Log.w(TAG, "requestAssistantReply: failed conversationId=$conversationId error=${lastError!!.type} partialContent=${fullContent.isNotBlank()}")
             val finalMessageId = messageId ?: persistAssistantMessage(
                 conversationId = conversationId,
                 content = "",
                 state = MessageDeliveryState.FAILED,
                 errorType = lastError!!.type
             )
+            // Preserve any partial content so the user sees what arrived before the error.
+            val persistedContent = fullContent.ifBlank { lastError!!.message ?: lastError!!.type.toFriendlyMessage() }
             dao.updateMessage(
                 messageId = finalMessageId,
-                content = lastError!!.message ?: lastError!!.type.toFriendlyMessage(),
+                content = persistedContent,
                 state = MessageDeliveryState.FAILED.name,
                 errorType = lastError!!.type.name
             )
             return SendMessageResult.Failure(conversationId, lastError!!.type, lastError!!.message)
-        } else if (fullContent.isBlank() && lastError == null) {
+        } else if (fullContent.isBlank()) {
             Log.w(TAG, "requestAssistantReply: empty response conversationId=$conversationId")
             val emptyError = AiErrorType.EMPTY_RESPONSE
             val finalMessageId = messageId ?: persistAssistantMessage(
@@ -208,6 +214,12 @@ class DefaultConversationRepository(
                 content = emptyError.toFriendlyMessage(),
                 state = MessageDeliveryState.FAILED,
                 errorType = emptyError
+            )
+            dao.updateMessage(
+                messageId = finalMessageId,
+                content = emptyError.toFriendlyMessage(),
+                state = MessageDeliveryState.FAILED.name,
+                errorType = emptyError.name
             )
             return SendMessageResult.Failure(conversationId, emptyError)
         }
@@ -271,7 +283,7 @@ class DefaultConversationRepository(
 
     companion object {
         private const val TAG = "ConversationRepository"
-        const val DEFAULT_MODEL = "gemini-1.5-flash"
+        const val DEFAULT_MODEL = "gemini-2.5-flash"
         const val DEFAULT_CONVERSATION_TITLE = "New chat"
         private const val MAX_TITLE_LENGTH = 48
     }

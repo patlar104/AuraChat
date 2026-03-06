@@ -6,6 +6,12 @@ import com.google.ai.client.generativeai.type.RequestOptions
 import com.google.ai.client.generativeai.type.SafetySetting
 import com.google.ai.client.generativeai.type.HarmCategory
 import com.google.ai.client.generativeai.type.BlockThreshold
+import com.google.ai.client.generativeai.type.InvalidAPIKeyException
+import com.google.ai.client.generativeai.type.PromptBlockedException
+import com.google.ai.client.generativeai.type.QuotaExceededException
+import com.google.ai.client.generativeai.type.RequestTimeoutException
+import com.google.ai.client.generativeai.type.ServerException
+import com.google.ai.client.generativeai.type.UnsupportedUserLocationException
 import com.google.ai.client.generativeai.type.content
 import com.personal.aurachat.domain.model.AiErrorType
 import com.personal.aurachat.domain.model.AiReply
@@ -25,13 +31,14 @@ class GoogleAiService(
     private var cachedModel: GenerativeModel? = null
     private var cachedApiKey: String? = null
     private var cachedModelName: String? = null
+    private var cachedTimeout: Long? = null
 
     private suspend fun getModel(modelName: String, timeoutMillis: Long): GenerativeModel {
         val apiKey = apiKeyProvider()?.trim().orEmpty()
         if (apiKey.isBlank()) throw IllegalArgumentException("API Key is missing")
 
         val currentModel = cachedModel
-        if (currentModel != null && cachedApiKey == apiKey && cachedModelName == modelName) {
+        if (currentModel != null && cachedApiKey == apiKey && cachedModelName == modelName && cachedTimeout == timeoutMillis) {
             Log.d(TAG, "Using cached model: $modelName")
             return currentModel
         }
@@ -52,6 +59,7 @@ class GoogleAiService(
         cachedModel = newModel
         cachedApiKey = apiKey
         cachedModelName = modelName
+        cachedTimeout = timeoutMillis
         return newModel
     }
 
@@ -78,7 +86,7 @@ class GoogleAiService(
             Log.w(TAG, "generateReply: unauthorized - ${e.message}")
             AiResult.Error(AiErrorType.UNAUTHORIZED, e.message)
         } catch (e: Exception) {
-            Log.e(TAG, "generateReply: error - ${e::class.simpleName}")
+            Log.e(TAG, "generateReply: error ${e::class.simpleName}: ${e.message}", e)
             mapError(e)
         }
     }
@@ -111,7 +119,7 @@ class GoogleAiService(
         Log.d(TAG, "streamReply: complete chunks=$chunkCount")
     }.catch { e ->
         if (e is Exception) {
-            Log.e(TAG, "streamReply: error - ${e::class.simpleName}")
+            Log.e(TAG, "streamReply: error ${e::class.simpleName}: ${e.message}", e)
             emit(mapError(e))
         } else {
             Log.e(TAG, "streamReply: fatal error - ${e::class.simpleName}")
@@ -121,12 +129,22 @@ class GoogleAiService(
 
     private fun mapError(e: Exception): AiResult.Error {
         return when (e) {
+            is InvalidAPIKeyException ->
+                AiResult.Error(AiErrorType.UNAUTHORIZED, e.message ?: "Invalid API key.")
+            is RequestTimeoutException ->
+                AiResult.Error(AiErrorType.TIMEOUT, e.message ?: "Request timed out.")
+            is QuotaExceededException ->
+                AiResult.Error(AiErrorType.NETWORK, e.message ?: "Quota exceeded.")
+            is UnsupportedUserLocationException ->
+                AiResult.Error(AiErrorType.NETWORK, e.message ?: "User location is not supported.")
+            is PromptBlockedException ->
+                AiResult.Error(AiErrorType.EMPTY_RESPONSE, e.message ?: "Prompt was blocked.")
             is com.google.ai.client.generativeai.type.ResponseStoppedException ->
                 AiResult.Error(AiErrorType.EMPTY_RESPONSE, "Response stopped unexpectedly.")
             is com.google.ai.client.generativeai.type.SerializationException ->
                 AiResult.Error(AiErrorType.MALFORMED_RESPONSE, "Error parsing AI response.")
-            is com.google.ai.client.generativeai.type.ServerException ->
-                AiResult.Error(AiErrorType.NETWORK, "AI server error.")
+            is ServerException ->
+                AiResult.Error(AiErrorType.NETWORK, e.message ?: "AI server error.")
             else -> AiResult.Error(AiErrorType.UNKNOWN, e.message ?: "An unexpected error occurred.")
         }
     }

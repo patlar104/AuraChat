@@ -25,7 +25,16 @@ interface AuraChatDao {
     )
     fun observeConversationSummaries(): Flow<List<ConversationSummaryRow>>
 
-    @Query("SELECT * FROM messages WHERE conversationId = :conversationId ORDER BY createdAtEpochMs ASC, id ASC LIMIT :limit")
+    @Query(
+        """
+        SELECT * FROM (
+            SELECT * FROM messages
+            WHERE conversationId = :conversationId
+            ORDER BY createdAtEpochMs DESC, id DESC
+            LIMIT :limit
+        ) ORDER BY createdAtEpochMs ASC, id ASC
+        """
+    )
     fun observeMessages(conversationId: Long, limit: Int = 100): Flow<List<MessageEntity>>
 
     @Query("SELECT title FROM conversations WHERE id = :conversationId LIMIT 1")

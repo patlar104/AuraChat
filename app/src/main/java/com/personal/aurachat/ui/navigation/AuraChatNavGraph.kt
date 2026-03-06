@@ -1,6 +1,7 @@
 package com.personal.aurachat.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -68,6 +69,17 @@ fun AuraChatNavGraph(
                 )
             )
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+            // When a new chat (id == -1) gets its first message, replace the placeholder
+            // route with the real conversation id so Back and identity work correctly.
+            LaunchedEffect(uiState.conversationId) {
+                val realId = uiState.conversationId ?: return@LaunchedEffect
+                if (conversationId <= 0L && realId > 0L) {
+                    navController.navigate("chat/$realId") {
+                        popUpTo("chat/-1") { inclusive = true }
+                    }
+                }
+            }
 
             ChatScreen(
                 uiState = uiState,

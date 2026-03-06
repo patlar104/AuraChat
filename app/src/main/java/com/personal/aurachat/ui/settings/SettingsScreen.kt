@@ -103,6 +103,11 @@ fun SettingsScreen(
                 text = "Request timeout",
                 style = MaterialTheme.typography.titleMedium
             )
+            Text(
+                text = "Saved immediately when selected",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Spacer(modifier = Modifier.height(10.dp))
 
             FlowRow(
@@ -126,7 +131,7 @@ fun SettingsScreen(
                 enabled = uiState.apiKey.isNotBlank() && !uiState.isSaving,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(if (uiState.isSaving) "Saving..." else "Save")
+                Text(if (uiState.isSaving) "Saving..." else "Save API Key")
             }
 
             if (uiState.saveMessage != null) {

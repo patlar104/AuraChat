@@ -142,6 +142,10 @@ fun ChatScreen(
                         bottom = 12.dp
                     )
                 ) {
+                    val lastFailedIndex = uiState.messages.indexOfLast {
+                        it.deliveryState == MessageDeliveryState.FAILED
+                    }
+
                     items(
                         count = uiState.messages.size,
                         key = { index -> uiState.messages[index].id }
@@ -149,11 +153,7 @@ fun ChatScreen(
                         val message = uiState.messages[index]
                         MessageBubble(
                             message = message,
-                            onRetry = if (message.deliveryState == MessageDeliveryState.FAILED) {
-                                onRetryFailed
-                            } else {
-                                null
-                            }
+                            onRetry = if (index == lastFailedIndex) onRetryFailed else null
                         )
                     }
 
